@@ -40,26 +40,38 @@ exports.socketio = (hookName, args, cb) => {
   io.on('connection', (socket) => {
     // Join the rooms
     socket.on('getComments', async (data, respond) => {
-      const {padId} = await readOnlyManager.getIds(data.padId);
-      // Put read-only and read-write users in the same socket.io "room" so that they can see each
-      // other's updates.
-      socket.join(padId);
-      respond(await commentManager.getComments(padId));
+      try {
+        const {padId} = await readOnlyManager.getIds(data.padId);
+        // Put read-only and read-write users in the same socket.io "room" so that they can see each
+        // other's updates.
+        socket.join(padId);
+        respond(await commentManager.getComments(padId));
+      } catch (err) {
+        respond(err.message || err.toString());
+      }
     });
 
     socket.on('getCommentReplies', async (data, respond) => {
-      const {padId} = await readOnlyManager.getIds(data.padId);
-      respond(await commentManager.getCommentReplies(padId));
+      try {
+        const {padId} = await readOnlyManager.getIds(data.padId);
+        respond(await commentManager.getCommentReplies(padId));
+      } catch (err) {
+        respond(err.message || err.toString());
+      }
     });
 
     // On add events
     socket.on('addComment', async (data, respond) => {
-      const {padId} = await readOnlyManager.getIds(data.padId);
-      const content = data.comment;
-      const [commentId, comment] = await commentManager.addComment(padId, content);
-      if (commentId != null && comment != null) {
-        socket.broadcast.to(padId).emit('pushAddComment', commentId, comment);
-        respond(commentId, comment);
+      try {
+        const {padId} = await readOnlyManager.getIds(data.padId);
+        const content = data.comment;
+        const [commentId, comment] = await commentManager.addComment(padId, content);
+        if (commentId != null && comment != null) {
+          socket.broadcast.to(padId).emit('pushAddComment', commentId, comment);
+          respond(commentId, comment);
+        }
+      } catch (err) {
+        respond(err.message || err.toString());
       }
     });
 
@@ -75,33 +87,49 @@ exports.socketio = (hookName, args, cb) => {
     });
 
     socket.on('revertChange', async (data, respond) => {
-      const {padId} = await readOnlyManager.getIds(data.padId);
-      // Broadcast to all other users that this change was accepted.
-      // Note that commentId here can either be the commentId or replyId..
-      await commentManager.changeAcceptedState(padId, data.commentId, false);
-      socket.broadcast.to(padId).emit('changeReverted', data.commentId);
+      try {
+        const {padId} = await readOnlyManager.getIds(data.padId);
+        // Broadcast to all other users that this change was accepted.
+        // Note that commentId here can either be the commentId or replyId..
+        await commentManager.changeAcceptedState(padId, data.commentId, false);
+        socket.broadcast.to(padId).emit('changeReverted', data.commentId);
+      } catch (err) {
+        respond(err.message || err.toString());
+      }
     });
 
     socket.on('acceptChange', async (data, respond) => {
-      const {padId} = await readOnlyManager.getIds(data.padId);
-      // Broadcast to all other users that this change was accepted.
-      // Note that commentId here can either be the commentId or replyId..
-      await commentManager.changeAcceptedState(padId, data.commentId, true);
-      socket.broadcast.to(padId).emit('changeAccepted', data.commentId);
+      try {
+        const {padId} = await readOnlyManager.getIds(data.padId);
+        // Broadcast to all other users that this change was accepted.
+        // Note that commentId here can either be the commentId or replyId..
+        await commentManager.changeAcceptedState(padId, data.commentId, true);
+        socket.broadcast.to(padId).emit('changeAccepted', data.commentId);
+      } catch (err) {
+        respond(err.message || err.toString());
+      }
     });
 
     socket.on('bulkAddComment', async (padId, data, respond) => {
-      padId = (await readOnlyManager.getIds(padId)).padId;
-      const [commentIds, comments] = await commentManager.bulkAddComments(padId, data);
-      socket.broadcast.to(padId).emit('pushAddCommentInBulk');
-      respond(_.object(commentIds, comments)); // {c-123:data, c-124:data}
+      try {
+        padId = (await readOnlyManager.getIds(padId)).padId;
+        const [commentIds, comments] = await commentManager.bulkAddComments(padId, data);
+        socket.broadcast.to(padId).emit('pushAddCommentInBulk');
+        respond(_.object(commentIds, comments)); // {c-123:data, c-124:data}
+      } catch (err) {
+        respond(err.message || err.toString());
+      }
     });
 
     socket.on('bulkAddCommentReplies', async (padId, data, respond) => {
-      padId = (await readOnlyManager.getIds(padId)).padId;
-      const [repliesId, replies] = await commentManager.bulkAddCommentReplies(padId, data);
-      socket.broadcast.to(padId).emit('pushAddCommentReply', repliesId, replies);
-      respond(_.zip(repliesId, replies));
+      try {
+        padId = (await readOnlyManager.getIds(padId)).padId;
+        const [repliesId, replies] = await commentManager.bulkAddCommentReplies(padId, data);
+        socket.broadcast.to(padId).emit('pushAddCommentReply', repliesId, replies);
+        respond(_.zip(repliesId, replies));
+      } catch (err) {
+        respond(err.message || err.toString());
+      }
     });
 
     socket.on('updateCommentText', async (data, respond) => {
@@ -117,11 +145,15 @@ exports.socketio = (hookName, args, cb) => {
     });
 
     socket.on('addCommentReply', async (data, respond) => {
-      const {padId} = await readOnlyManager.getIds(data.padId);
-      const [replyId, reply] = await commentManager.addCommentReply(padId, data);
-      reply.replyId = replyId;
-      socket.broadcast.to(padId).emit('pushAddCommentReply', replyId, reply);
-      respond(replyId, reply);
+      try {
+        const {padId} = await readOnlyManager.getIds(data.padId);
+        const [replyId, reply] = await commentManager.addCommentReply(padId, data);
+        reply.replyId = replyId;
+        socket.broadcast.to(padId).emit('pushAddCommentReply', replyId, reply);
+        respond(replyId, reply);
+      } catch (err) {
+        respond(err.message || err.toString());
+      }
     });
   });
   return cb();
